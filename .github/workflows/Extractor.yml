@@ -7,10 +7,7 @@ on:
         description: 'Samsung Device Model (e.g., SM-A226B)'
         required: true
       csc:
-        description: 'CSC (e.g., EUX, INS)'
-        required: true
-      firmware_version:
-        description: 'Last 4 Letters of Firmware Version (e.g., DXD2)'
+        description: 'CSC (e.g., BTB, EUX, INS)'
         required: true
 
 jobs:
@@ -25,14 +22,24 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y unzip python3-pip android-sdk-libsparse-utils lz4 util-linux git
-          pip3 install git+https://github.com/nlscc/samloader.git
+          pip3 install --upgrade git+https://github.com/samloader/samloader.git
+
+      - name: Get Latest Firmware Version
+        id: firmware_version
+        run: |
+          FULL_VERSION=$(samloader -m ${{ github.event.inputs.device_model }} -r ${{ github.event.inputs.csc }} checkupdate)
+          echo "Firmware Version: $FULL_VERSION"
+          echo "FULL_VERSION=$FULL_VERSION" >> $GITHUB_ENV
 
       - name: Download Samsung Firmware
         run: |
-          samloader checkupdate --model="${{ github.event.inputs.device_model }}" --region="${{ github.event.inputs.csc }}"
-          samloader download --model="${{ github.event.inputs.device_model }}" --region="${{ github.event.inputs.csc }}" \
-                             --version="${{ github.event.inputs.firmware_version }}" --output="firmware.enc"
-          samloader decrypt --input="firmware.enc" --output="firmware.zip" --version="${{ github.event.inputs.firmware_version }}"
+          samloader -m ${{ github.event.inputs.device_model }} -r ${{ github.event.inputs.csc }} \
+                    download -v $FULL_VERSION -o firmware.enc
+
+      - name: Decrypt Samsung Firmware
+        run: |
+          samloader -m ${{ github.event.inputs.device_model }} -r ${{ github.event.inputs.csc }} \
+                    decrypt -v $FULL_VERSION -V 2 -i firmware.enc -o firmware.zip
 
       - name: Extract firmware
         run: |
@@ -55,8 +62,8 @@ jobs:
       - name: Upload extracted files to GitHub Releases
         uses: ncipollo/release-action@v1
         with:
-          tag: firmware-${{ github.event.inputs.device_model }}-${{ github.event.inputs.firmware_version }}
-          name: "Extracted Firmware - ${{ github.event.inputs.device_model }} - ${{ github.event.inputs.firmware_version }}"
+          tag: firmware-${{ github.event.inputs.device_model }}-${{ env.FULL_VERSION }}
+          name: "Extracted Firmware - ${{ github.event.inputs.device_model }} - ${{ env.FULL_VERSION }}"
           artifacts: "super.img,super_extracted/*,super_extracted_fallback/*"
-          body: "Extracted firmware for ${{ github.event.inputs.device_model }} - CSC: ${{ github.event.inputs.csc }} - Firmware: ${{ github.event.inputs.firmware_version }}"
+          body: "Extracted firmware for ${{ github.event.inputs.device_model }} - CSC: ${{ github.event.inputs.csc }} - Firmware: ${{ env.FULL_VERSION }}"
           token: ${{ secrets.GITHUB_TOKEN }}
