@@ -14,7 +14,7 @@ on:
         required: true
 
 jobs:
-  download_extract_firmware:
+  extract_firmware:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,12 +24,15 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y unzip python3-pip simg2img lz4
+          sudo apt install -y unzip python3-pip android-sdk-libsparse-utils lz4 loop-utils
           pip3 install samsung-firmware-downloader
 
       - name: Download Samsung Firmware
         run: |
-          samsung-firmware-downloader -m ${{ github.event.inputs.device_model }} -r ${{ github.event.inputs.csc }} -v ${{ github.event.inputs.firmware_version }} -o firmware.zip
+          samsung-firmware-downloader -m "${{ github.event.inputs.device_model }}" \
+                                      -r "${{ github.event.inputs.csc }}" \
+                                      -v "${{ github.event.inputs.firmware_version }}" \
+                                      -o firmware.zip
 
       - name: Extract firmware
         run: |
@@ -39,11 +42,11 @@ jobs:
         run: |
           find firmware_extracted -name "super.img.*" -exec cat {} + > super.img
           mkdir super_extracted
-          simg2img super.img super.raw
+          img2simg super.img super.raw  # Converts sparse image to raw
           mkdir super_mounted
-          sudo mount -o loop super.raw super_mounted || echo "Failed to mount, proceeding with lpmake extraction"
+          sudo mount -o loop super.raw super_mounted || echo "Mount failed, using lpmake extraction"
 
-      - name: Extract super partitions (fallback method)
+      - name: Extract super partitions (fallback)
         if: always()
         run: |
           mkdir super_extracted_fallback
