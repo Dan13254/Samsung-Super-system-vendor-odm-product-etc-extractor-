@@ -24,15 +24,15 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y unzip python3-pip android-sdk-libsparse-utils lz4 util-linux
-          pip3 install samsung-firmware-downloader
+          sudo apt install -y unzip python3-pip android-sdk-libsparse-utils lz4 util-linux git
+          pip3 install git+https://github.com/nlscc/samloader.git
 
       - name: Download Samsung Firmware
         run: |
-          samsung-firmware-downloader -m "${{ github.event.inputs.device_model }}" \
-                                      -r "${{ github.event.inputs.csc }}" \
-                                      -v "${{ github.event.inputs.firmware_version }}" \
-                                      -o firmware.zip
+          samloader checkupdate -m "${{ github.event.inputs.device_model }}" -r "${{ github.event.inputs.csc }}"
+          samloader download -m "${{ github.event.inputs.device_model }}" -r "${{ github.event.inputs.csc }}" \
+                             -v "${{ github.event.inputs.firmware_version }}" -o firmware.enc
+          samloader decrypt -i firmware.enc -o firmware.zip -v "${{ github.event.inputs.firmware_version }}"
 
       - name: Extract firmware
         run: |
