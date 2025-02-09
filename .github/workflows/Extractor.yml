@@ -29,10 +29,10 @@ jobs:
 
       - name: Download Samsung Firmware
         run: |
-          samloader checkupdate -m "${{ github.event.inputs.device_model }}" -r "${{ github.event.inputs.csc }}"
-          samloader download -m "${{ github.event.inputs.device_model }}" -r "${{ github.event.inputs.csc }}" \
-                             -v "${{ github.event.inputs.firmware_version }}" -o firmware.enc
-          samloader decrypt -i firmware.enc -o firmware.zip -v "${{ github.event.inputs.firmware_version }}"
+          samloader checkupdate --model="${{ github.event.inputs.device_model }}" --region="${{ github.event.inputs.csc }}"
+          samloader download --model="${{ github.event.inputs.device_model }}" --region="${{ github.event.inputs.csc }}" \
+                             --version="${{ github.event.inputs.firmware_version }}" --output="firmware.enc"
+          samloader decrypt --input="firmware.enc" --output="firmware.zip" --version="${{ github.event.inputs.firmware_version }}"
 
       - name: Extract firmware
         run: |
