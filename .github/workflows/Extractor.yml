@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y unzip python3-pip android-sdk-libsparse-utils lz4 loop-utils
+          sudo apt install -y unzip python3-pip android-sdk-libsparse-utils lz4 util-linux
           pip3 install samsung-firmware-downloader
 
       - name: Download Samsung Firmware
