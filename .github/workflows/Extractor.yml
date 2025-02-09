@@ -1,0 +1,59 @@
+name: Samsung Firmware Extractor
+
+on:
+  workflow_dispatch:
+    inputs:
+      device_model:
+        description: 'Samsung Device Model (e.g., SM-A226B)'
+        required: true
+      csc:
+        description: 'CSC (e.g., EUX, INS)'
+        required: true
+      firmware_version:
+        description: 'Last 4 Letters of Firmware Version (e.g., DXD2)'
+        required: true
+
+jobs:
+  download_extract_firmware:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y unzip python3-pip simg2img lz4
+          pip3 install samsung-firmware-downloader
+
+      - name: Download Samsung Firmware
+        run: |
+          samsung-firmware-downloader -m ${{ github.event.inputs.device_model }} -r ${{ github.event.inputs.csc }} -v ${{ github.event.inputs.firmware_version }} -o firmware.zip
+
+      - name: Extract firmware
+        run: |
+          unzip firmware.zip -d firmware_extracted
+
+      - name: Extract super.img
+        run: |
+          find firmware_extracted -name "super.img.*" -exec cat {} + > super.img
+          mkdir super_extracted
+          simg2img super.img super.raw
+          mkdir super_mounted
+          sudo mount -o loop super.raw super_mounted || echo "Failed to mount, proceeding with lpmake extraction"
+
+      - name: Extract super partitions (fallback method)
+        if: always()
+        run: |
+          mkdir super_extracted_fallback
+          lpmake --extract super.raw --dir super_extracted_fallback || echo "lpmake extraction failed"
+
+      - name: Upload extracted files to GitHub Releases
+        uses: ncipollo/release-action@v1
+        with:
+          tag: firmware-${{ github.event.inputs.device_model }}-${{ github.event.inputs.firmware_version }}
+          name: "Extracted Firmware - ${{ github.event.inputs.device_model }} - ${{ github.event.inputs.firmware_version }}"
+          artifacts: "super.img,super_extracted/*,super_extracted_fallback/*"
+          body: "Extracted firmware for ${{ github.event.inputs.device_model }} - CSC: ${{ github.event.inputs.csc }} - Firmware: ${{ github.event.inputs.firmware_version }}"
+          token: ${{ secrets.GITHUB_TOKEN }}
